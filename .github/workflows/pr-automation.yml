@@ -8,26 +8,29 @@ on:
 jobs:
   check-commit:
     runs-on: ubuntu-latest
+    outputs:
+      should_create_pr: ${{ steps.check.outputs.should_create_pr }}
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Check Commit Message Format
+        id: check
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%s)
           echo "DEBUG: Checking commit message: '$COMMIT_MSG'"
           if echo "$COMMIT_MSG" | grep -qE "^create-pr\(.+\)$"; then
             echo "Commit message matches PR creation format."
-            echo "should_create_pr=true" >> $GITHUB_ENV
+            echo "should_create_pr=true" >> $GITHUB_OUTPUT
           else
             echo "Commit message does not match PR creation format—skipping."
-            echo "should_create_pr=false" >> $GITHUB_ENV
+            echo "should_create_pr=false" >> $GITHUB_OUTPUT
           fi
 
   pr-automation:
     needs: check-commit
-    if: env.should_create_pr == 'true'
+    if: needs.check-commit.outputs.should_create_pr == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
