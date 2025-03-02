@@ -26,4 +26,4 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
 COPY src/ ./src/
 
-ENTRYPOINT ["python", "src/consumer.py"]
+# Geen ENTRYPOINT meer, dit regelen we in docker-compose.yml
