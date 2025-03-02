@@ -17,6 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # Installeer Poetry
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
       # Deel 1: PR-creatie bij push van PR.txt
       - name: Validate PR.txt and Create PR
         if: github.event_name == 'push'
