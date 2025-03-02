@@ -1,21 +1,17 @@
-name: PR Automation with PR.txt
+name: PR Automation from Commit Message
 
 on:
   push:
     branches:
       - feature/*
-    paths:
-      - 'PR.txt'
-  pull_request:
-    types: [closed]
-    branches:
-      - main
 
 jobs:
   pr-automation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Nodig om git log te gebruiken
 
       # Installeer Poetry
       - name: Install Poetry
@@ -24,49 +20,19 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      # Deel 1: PR-creatie of sluiting bij push
-      - name: Validate PR.txt and Manage PR
-        if: github.event_name == 'push'
+      # Valideer commit en maak PR
+      - name: Validate Commit and Create PR
         run: |
           poetry install --no-root
-          PR_CONTENT=$(poetry run tools/validate_pr_txt.py && echo "VALID" || echo "INVALID")
-          if [ "$PR_CONTENT" = "VALID" ]; then
-            TITLE=$(grep "^Title:" PR.txt | cut -d':' -f2- | xargs)
-            DESCRIPTION=$(grep "^Description:" PR.txt | cut -d':' -f2- | xargs)
-            LABELS=$(grep "^Labels:" PR.txt | cut -d':' -f2- | xargs || echo "")
-            if [ -z "$TITLE" ] || [ -z "$DESCRIPTION" ]; then
-              echo "Validation failed or missing fields."
-              exit 1
-            fi
+          COMMIT_DATA=$(poetry run tools/validate_commit_msg.py && echo "VALID" || echo "INVALID")
+          if [ "$COMMIT_DATA" = "VALID" ]; then
+            TITLE=$(git log -1 --pretty=%s)
+            DESCRIPTION=$(git log -1 --pretty=%b | tail -n +2 || echo "No description provided.")
             echo "Creating PR with title: $TITLE"
-            gh pr create --base main --head ${{ github.ref_name }} --title "$TITLE" --body "$DESCRIPTION" --label "$LABELS"
-          elif [ -f PR.txt ]; then
-            echo "PR.txt is invalid—aborting."
-            exit 1
+            gh pr create --base main --head ${{ github.ref_name }} --title "$TITLE" --body "$DESCRIPTION" --label "auto-generated"
           else
-            echo "No valid PR.txt found—checking for open PRs to close."
-            PR_EXISTS=$(gh pr list --head ${{ github.ref_name }} --state open --json number -q '.[] | .number')
-            if [ -n "$PR_EXISTS" ]; then
-              for PR_NUM in $PR_EXISTS; do
-                echo "Closing PR #$PR_NUM as PR.txt was removed."
-                gh pr close $PR_NUM --comment "Closed due to PR.txt removal."
-              done
-            else
-              echo "No open PRs found for this branch."
-            fi
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Deel 2: Cleanup na merge
-      - name: Remove PR.txt after merge
-        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
-        run: |
-          git checkout ${{ github.event.pull_request.head.ref }}
-          if [ -f PR.txt ]; then
-            git rm PR.txt
-            git commit -m "Remove PR.txt after merge"
-            git push origin ${{ github.event.pull_request.head.ref }}
+            echo "Invalid commit message—skipping PR creation."
+            exit 1
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
