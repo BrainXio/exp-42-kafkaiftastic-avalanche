@@ -29,7 +29,7 @@ services:
       - kafka_data:/bitnami/kafka
 
   app:
-    image: ghcr.io/brainxio/exp-42-kafkaiftastic-avalanche:latest
+    image: ghcr.io/brainxio/exp-42-kafkaiftastic-avalanche:consumer
     build:
       context: .
       dockerfile: Dockerfile
@@ -40,6 +40,19 @@ services:
       kafka:
         condition: service_healthy
     entrypoint: ["sh", "-c", "sleep 10 && python src/consumer.py"]
+
+  app-producer:
+    image: ghcr.io/brainxio/exp-42-kafkaiftastic-avalanche:producer
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=avalanche-topic
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["sh", "-c", "sleep 10 && python src/producer.py"]
 
 volumes:
   zookeeper_data:
