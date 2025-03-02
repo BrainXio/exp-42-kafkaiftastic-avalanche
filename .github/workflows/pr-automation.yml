@@ -6,55 +6,54 @@ on:
       - feature/*
 
 jobs:
-  check-commit:
+  check-trigger:
     runs-on: ubuntu-latest
+    outputs:
+      action: ${{ steps.check.outputs.action }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check Commit Message Format
-        run: |
-          COMMIT_MSG=$(git log -1 --pretty=%s)
-          echo "DEBUG: Checking commit message: '$COMMIT_MSG'"
-          if echo "$COMMIT_MSG" | grep -qE "^create-pr\(.+\)$"; then
-            echo "Commit message matches PR creation format."
-            echo "should_create_pr=true" >> $GITHUB_ENV
-          else
-            echo "Commit message does not match PR creation format—skipping."
-            echo "should_create_pr=false" >> $GITHUB_ENV
-          fi
+      - uses: ./.github/actions/check-trigger
+        id: check
 
   pr-automation:
-    needs: check-commit
-    if: env.should_create_pr == 'true'
+    needs: check-trigger
+    if: needs.check-trigger.outputs.action == 'create' || needs.check-trigger.outputs.action == 'close'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Validate Commit and Set PR Data
-        run: |
-          PR_DATA=$(python3 tools/validate_commit_msg.py)
-          if [ "$PR_DATA" = "INVALID" ]; then
-            echo "Invalid commit message—aborting."
-            exit 1
-          elif [ -z "$PR_DATA" ] || [ "$PR_DATA" = "None" ]; then
-            echo "No PR creation needed."
-            exit 0
-          else
-            echo "PR_TITLE=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"title\"])')" >> $GITHUB_ENV
-            echo "PR_BODY=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"description\"])')" >> $GITHUB_ENV
-            echo "PR_BASE=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"base\"])')" >> $GITHUB_ENV
-            echo "PR_LABELS=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(\",\".join(json.load(sys.stdin)[\"labels\"]))')" >> $GITHUB_ENV
-          fi
+      - name: Parse Commit Message
+        id: parse
+        uses: ./.github/actions/parse-commit
+        if: needs.check-trigger.outputs.action == 'create'
 
       - name: Create Pull Request
-        uses: ./.github/actions/create-pr
+        if: needs.check-trigger.outputs.action == 'create'
+        uses: peter-evans/create-pull-request@v7
         with:
-          base: ${{ env.PR_BASE }}
-          head: ${{ github.ref_name }}
-          title: ${{ env.PR_TITLE }}
-          body: ${{ env.PR_BODY }}
-          labels: ${{ env.PR_LABELS }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref_name }}
+          base: ${{ steps.parse.outputs.base }}
+          title: ${{ steps.parse.outputs.title }}
+          body: ${{ steps.parse.outputs.body }}
+          labels: ${{ steps.parse.outputs.labels }}
+
+      - name: Close Open Pull Requests
+        if: needs.check-trigger.outputs.action == 'close'
+        run: |
+          PR_EXISTS=$(gh pr list --head ${{ github.ref_name }} --state open --json number -q '.[] | .number')
+          if [ -n "$PR_EXISTS" ]; then
+            for PR_NUM in $PR_EXISTS; do
+              echo "Closing PR #$PR_NUM"
+              gh pr close $PR_NUM --comment "Closed due to close-pr commit."
+            done
+          else
+            echo "No open PRs found for this branch."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

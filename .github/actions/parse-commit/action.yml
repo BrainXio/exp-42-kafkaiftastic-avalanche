@@ -1,0 +1,39 @@
+name: 'Parse Commit Message'
+description: 'Parse commit message into PR inputs'
+outputs:
+  title:
+    description: 'PR title'
+    value: ${{ steps.parse.outputs.title }}
+  body:
+    description: 'PR body'
+    value: ${{ steps.parse.outputs.body }}
+  base:
+    description: 'Base branch'
+    value: ${{ steps.parse.outputs.base }}
+  labels:
+    description: 'Comma-separated PR labels'
+    value: ${{ steps.parse.outputs.labels }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Parse Commit Message
+      id: parse
+      run: |
+        COMMIT_MSG=$(git log -1 --pretty=%s)
+        echo "DEBUG: Parsing commit message: '$COMMIT_MSG'"
+        if echo "$COMMIT_MSG" | grep -qE "^create-pr\(.+\)$"; then
+          TITLE=$(echo "$COMMIT_MSG" | sed -n 's/create-pr(title=\([^;]*\);.*/\1/p')
+          BODY=$(echo "$COMMIT_MSG" | sed -n 's/create-pr(title=[^;]*;description=\([^)]*\))/\1/p')
+          BASE=$(echo "$COMMIT_MSG" | sed -n 's/.*base=\([^;)]*\).*/\1/p' || echo "main")
+          LABELS=$(echo "$COMMIT_MSG" | sed -n 's/.*labels=\([^;)]*\).*/\1/p' || echo "auto-generated")
+          [ -z "$TITLE" ] && TITLE="Untitled PR"
+          [ -z "$BODY" ] && BODY="No description provided."
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          echo "body=$BODY" >> $GITHUB_OUTPUT
+          echo "base=$BASE" >> $GITHUB_OUTPUT
+          echo "labels=$LABELS" >> $GITHUB_OUTPUT
+        else
+          echo "Invalid commit message format—aborting."
+          exit 1
+        fi
+      shell: bash
