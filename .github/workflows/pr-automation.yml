@@ -8,45 +8,35 @@ on:
 jobs:
   check-commit:
     runs-on: ubuntu-latest
-    outputs:
-      should_create_pr: ${{ steps.check.outputs.should_create_pr }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Check Commit Message Format
-        id: check
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%s)
           echo "DEBUG: Checking commit message: '$COMMIT_MSG'"
           if echo "$COMMIT_MSG" | grep -qE "^create-pr\(.+\)$"; then
             echo "Commit message matches PR creation format."
-            echo "should_create_pr=true" >> $GITHUB_OUTPUT
+            echo "should_create_pr=true" >> $GITHUB_ENV
           else
             echo "Commit message does not match PR creation format—skipping."
-            echo "should_create_pr=false" >> $GITHUB_OUTPUT
+            echo "should_create_pr=false" >> $GITHUB_ENV
           fi
 
   pr-automation:
     needs: check-commit
-    if: needs.check-commit.outputs.should_create_pr == 'true'
+    if: env.should_create_pr == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
       - name: Validate Commit and Set PR Data
         run: |
-          poetry install --no-root
-          PR_DATA=$(poetry run tools/validate_commit_msg.py)
+          PR_DATA=$(python3 tools/validate_commit_msg.py)
           if [ "$PR_DATA" = "INVALID" ]; then
             echo "Invalid commit message—aborting."
             exit 1
@@ -54,18 +44,17 @@ jobs:
             echo "No PR creation needed."
             exit 0
           else
-            echo "PR_TITLE=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)["title"])')" >> $GITHUB_ENV
-            echo "PR_BODY=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)["description"])')" >> $GITHUB_ENV
-            echo "PR_BASE=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)["base"])')" >> $GITHUB_ENV
-            echo "PR_LABELS=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(",".join(json.load(sys.stdin)["labels"]))')" >> $GITHUB_ENV
+            echo "PR_TITLE=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"title\"])')" >> $GITHUB_ENV
+            echo "PR_BODY=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"description\"])')" >> $GITHUB_ENV
+            echo "PR_BASE=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)[\"base\"])')" >> $GITHUB_ENV
+            echo "PR_LABELS=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(\",\".join(json.load(sys.stdin)[\"labels\"]))')" >> $GITHUB_ENV
           fi
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
+        uses: ./.github/actions/create-pr
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref_name }}
           base: ${{ env.PR_BASE }}
+          head: ${{ github.ref_name }}
           title: ${{ env.PR_TITLE }}
           body: ${{ env.PR_BODY }}
           labels: ${{ env.PR_LABELS }}
