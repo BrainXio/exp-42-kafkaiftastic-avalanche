@@ -41,7 +41,6 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Validate Commit and Set PR Data
-        id: validate
         run: |
           poetry install --no-root
           PR_DATA=$(poetry run tools/validate_commit_msg.py)
@@ -52,7 +51,10 @@ jobs:
             echo "No PR creation needed."
             exit 0
           else
-            echo "PR_DATA=$PR_DATA" >> $GITHUB_ENV
+            echo "PR_TITLE=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)["title"])')" >> $GITHUB_ENV
+            echo "PR_BODY=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)["description"])')" >> $GITHUB_ENV
+            echo "PR_BASE=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(json.load(sys.stdin)["base"])')" >> $GITHUB_ENV
+            echo "PR_LABELS=$(echo '$PR_DATA' | python3 -c 'import json, sys; print(",".join(json.load(sys.stdin)["labels"]))')" >> $GITHUB_ENV
           fi
 
       - name: Create Pull Request
@@ -60,7 +62,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref_name }}
-          base: ${{ env.PR_DATA | fromJson | get('base') }}
-          title: ${{ env.PR_DATA | fromJson | get('title') }}
-          body: ${{ env.PR_DATA | fromJson | get('description') }}
-          labels: ${{ env.PR_DATA | fromJson | get('labels') | join(',') }}
+          base: ${{ env.PR_BASE }}
+          title: ${{ env.PR_TITLE }}
+          body: ${{ env.PR_BODY }}
+          labels: ${{ env.PR_LABELS }}

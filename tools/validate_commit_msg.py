@@ -2,12 +2,12 @@
 import subprocess
 import sys
 import re
+import json
 
 
 def validate_commit_msg():
     """Parse and validate the latest commit message for PR creation."""
     try:
-        # Haal het laatste commit-bericht op
         commit_msg = (
             subprocess.check_output(["git", "log", "-1", "--pretty=%B"])
             .decode()
@@ -15,17 +15,15 @@ def validate_commit_msg():
         )
         print(f"DEBUG: Raw commit message: '{commit_msg}'")
 
-        # Check of het bericht begint met create-pr(...)
         pattern = r"^create-pr\((.+)\)$"
         match = re.match(pattern, commit_msg)
         if not match:
             print(
                 "DEBUG: Commit message does not match 'create-pr(...)'",
-                "format—skipping.",
+                " format—skipping.",
             )
             return None
 
-        # Parse key-value pairs binnen de haakjes
         args_str = match.group(1)
         args = {}
         for pair in args_str.split(";"):
@@ -33,7 +31,6 @@ def validate_commit_msg():
                 key, value = map(str.strip, pair.split("=", 1))
                 args[key] = value
 
-        # Minimale vereisten
         required_fields = {"title"}
         missing = required_fields - set(args.keys())
         if missing:
@@ -43,11 +40,10 @@ def validate_commit_msg():
         if not args["title"] or len(args["title"]) < 3:
             print(
                 "Error: Title must be at least 3 characters long",
-                f"(got '{args['title']}').",
+                "(got '{args['title']}').",
             )
             return False
 
-        # Default waarden voor optionele velden
         defaults = {
             "base": "main",
             "description": "No description provided.",
@@ -56,7 +52,6 @@ def validate_commit_msg():
         for key, default in defaults.items():
             args.setdefault(key, default)
 
-        # Labels als lijst
         if "labels" in args:
             args["labels"] = [
                 label.strip() for label in args["labels"].split(",")
@@ -72,4 +67,10 @@ def validate_commit_msg():
 
 if __name__ == "__main__":
     result = validate_commit_msg()
+    if result is False:
+        print("INVALID")
+    elif result is None:
+        print("None")
+    else:
+        print(json.dumps(result))
     sys.exit(0 if result is not False else 1)
