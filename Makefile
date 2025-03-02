@@ -1,33 +1,46 @@
 # Makefile for exp-42-kafkaiftastic-avalanche workflows
-.PHONY: all install format lint test build run-producer run-consumer clean
+.PHONY: all install format lint test pre-commit-checks build run-producer run-consumer clean
 
-all: install format lint test build
+all: install format lint test pre-commit-checks
 
 install:
 	poetry install --no-root
 
 format:
-	poetry run black --line-length 79 src/ tests/
-	poetry run ruff check --fix src/ tests/
+	poetry run tools/fix_eof.py
+	poetry run tools/format_python.py
+	poetry run tools/format_json.py
+	poetry run tools/format_yaml.py
+	poetry run tools/format_markdown.py
+	poetry run tools/fix_whitespace.py
 
 lint:
-	poetry run black --check --line-length 79 src/ tests/
-	poetry run flake8 src/ tests/
-	poetry run ruff check src/ tests/
+	poetry run tools/lint.py
 
 test:
-	poetry run pytest tests/
+	poetry run tools/test.py
 
-build:
-	docker build --build-arg BUILD_DATE=$$(date -u +"%Y-%m-%dT%H:%M:%SZ") -t exp-42-kafkaiftastic-avalanche .
+pre-commit-check:
+	poetry run pre-commit migrate-config
+	poetry run tools/pre_commit_check.py
 
 run-producer:
-	poetry run python src/producer.py
+	poetry run tools/run_producer.py
 
 run-consumer:
-	poetry run python src/consumer.py
+	poetry run tools/run_consumer.py
 
-clean:
-	find . -type d -name "__pycache__" -exec rm -r {} +
-	find . -type d -name "*.egg-info" -exec rm -r {} +
-	find . -type d -name "*.pyc" -exec rm -r {} +
+docker-build:
+	poetry run tools/build.py
+
+compose-up: build
+	docker compose up -d
+
+compose-logs: compose-up
+	docker compose logs
+
+compose-down:
+	docker compose down -v
+
+clean: compose-down
+	poetry run tools/clean.py

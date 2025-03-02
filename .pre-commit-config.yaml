@@ -1,0 +1,18 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.6.0
+  hooks:
+  - id: trailing-whitespace
+    stages: [pre-commit]
+    args: [--markdown-linebreak-ext=md]
+  - id: end-of-file-fixer
+    stages: [pre-commit]
+  - id: check-json
+    files: ^artifacts/.*\.json$
+  - id: check-yaml
+    files: ^docker-compose\.yml$
+- repo: https://github.com/psf/black
+  rev: 23.12.1
+  hooks:
+  - id: black
+    stages: [pre-commit]

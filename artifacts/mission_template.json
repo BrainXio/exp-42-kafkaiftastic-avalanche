@@ -1,1 +1,10 @@
-{\n    "mission": "Unleash the avalanche",\n    "model": "simple-sentiment",\n    "prompt": "Detect chaos in incoming messages",\n    "version": "0.1.0",\n    "parameters": {\n        "positive_keywords": ["avalanche", "chaos"],\n        "default_sentiment": "neutral"\n    }\n}
+{
+    "mission": "Unleash the avalanche",
+    "model": "simple-sentiment",
+    "prompt": "Detect chaos in incoming messages",
+    "version": "0.1.0",
+    "parameters": {
+        "positive_keywords": ["avalanche", "chaos"],
+        "default_sentiment": "neutral"
+    }
+}

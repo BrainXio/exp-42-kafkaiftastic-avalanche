@@ -9,7 +9,11 @@ license = {text = "LICENSE"}
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "kafka-python (>=2.0.2,<3.0.0)"
+    "kafka-python (>=2.0.2,<3.0.0)",
+    "pyyaml (>=6.0.2,<7.0.0)",
+    "mdformat (>=0.7.22,<0.8.0)",
+    "pre-commit (>=4.1.0,<5.0.0)",
+    "pytest-docker (>=3.2.0,<4.0.0)"
 ]
 
 [build-system]
@@ -21,16 +25,17 @@ flake8 = "^6.0"
 black = "^23.0"
 pytest = "^7.0"
 ruff = "^0.9.9"
+gitignore-parser = "^0.1.11"
 
 [tool.black]
 line-length = 79
-skip-string-normalization = false  # Forceer consistente stringquotes (geen uitzonderingen)
-target-version = ['py39']  # Stel een specifieke Python-versie in voor consistente opmaak
+skip-string-normalization = false
+target-version = ['py39']
 
 [tool.flake8]
 max-line-length = 79
-extend-ignore = []  # Geen extra uitzonderingen
-select = "E,F,W"  # Consistente regels met ruff
+extend-ignore = []
+select = "E,F,W"
 
 [tool.ruff]
 line-length = 79
