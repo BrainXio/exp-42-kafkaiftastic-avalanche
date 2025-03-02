@@ -20,6 +20,12 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
+      # Log het laatste commit-bericht voor debugging
+      - name: Log Latest Commit Message
+        run: |
+          echo "Last commit message:"
+          git log -1 --pretty=%B
+
       # Valideer commit en maak PR
       - name: Validate Commit and Create PR
         run: |

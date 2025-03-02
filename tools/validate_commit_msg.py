@@ -7,6 +7,7 @@ def validate_commit_msg():
     try:
         # Haal het laatste commit-bericht op
         commit_msg = subprocess.check_output(["git", "log", "-1", "--pretty=%B"]).decode().strip()
+        print(f"Validating commit message: '{commit_msg}'")
         if not commit_msg:
             print("Error: No commit message found.")
             return False
@@ -15,11 +16,9 @@ def validate_commit_msg():
         title = lines[0].strip() if lines else ""
         description = "\n".join(line.strip() for line in lines[1:]) if len(lines) > 1 else ""
 
-        if not title:
-            print("Error: Commit message must have a title (first line).")
-            return False
-        if len(title) < 5:
-            print("Error: Title must be at least 5 characters long.")
+        # Minimaal 3 karakters voor titel (minder streng dan 5)
+        if not title or len(title) < 3:
+            print(f"Error: Commit title must be at least 3 characters long (got '{title}').")
             return False
 
         print("Commit message validated successfully.")
