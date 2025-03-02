@@ -52,6 +52,7 @@ jobs:
         run: |
           poetry run black --check src/ tests/
           poetry run flake8 src/ tests/
+          poetry run ruff check src/ tests/
 
   test:
     runs-on: ubuntu-latest
