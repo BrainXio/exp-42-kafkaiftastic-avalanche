@@ -1,5 +1,5 @@
 # Makefile for exp-42-kafkaiftastic-avalanche workflows
-.PHONY: all install format lint test build run-producer run-consumer clean
+.PHONY: all install format lint test pre-commit-checks build run-producer run-consumer clean
 
 all: install lint test format
 
