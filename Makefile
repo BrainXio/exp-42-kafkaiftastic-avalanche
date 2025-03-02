@@ -13,6 +13,7 @@ format:
 lint:
 	poetry run black --check --line-length 79 src/ tests/
 	poetry run flake8 src/ tests/
+	poetry run ruff check src/ tests/
 
 test:
 	poetry run pytest tests/

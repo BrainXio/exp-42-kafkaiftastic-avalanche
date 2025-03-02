@@ -22,11 +22,20 @@ black = "^23.0"
 pytest = "^7.0"
 ruff = "^0.9.9"
 
-[tool.ruff]
-line-length = 79
-
 [tool.black]
 line-length = 79
+skip-string-normalization = false  # Forceer consistente stringquotes (geen uitzonderingen)
+target-version = ['py39']  # Stel een specifieke Python-versie in voor consistente opmaak
 
 [tool.flake8]
 max-line-length = 79
+extend-ignore = []  # Geen extra uitzonderingen
+select = "E,F,W"  # Consistente regels met ruff
+
+[tool.ruff]
+line-length = 79
+fix = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = []
