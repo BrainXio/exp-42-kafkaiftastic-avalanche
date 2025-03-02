@@ -11,13 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Nodig om git log te gebruiken
+          fetch-depth: 0
 
       - name: Check Commit Message Format
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%s)
           echo "DEBUG: Checking commit message: '$COMMIT_MSG'"
-          if echo "$COMMIT_MSG" | grep -qE "^create-pr\(title=.+;description=.+\)$"; then
+          if echo "$COMMIT_MSG" | grep -qE "^create-pr\(.+\)$"; then
             echo "Commit message matches PR creation format."
             echo "should_create_pr=true" >> $GITHUB_ENV
           else
@@ -34,32 +34,33 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Installeer Poetry
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      # Valideer commit en maak PR
-      - name: Validate Commit and Create PR
+      - name: Validate Commit and Set PR Data
+        id: validate
         run: |
           poetry install --no-root
-          COMMIT_DATA=$(poetry run tools/validate_commit_msg.py && echo "VALID" || echo "INVALID")
-          echo "Validation result: $COMMIT_DATA"
-          if [ "$COMMIT_DATA" != "VALID" ]; then
-            echo "Invalid commit message—aborting PR creation."
+          PR_DATA=$(poetry run tools/validate_commit_msg.py)
+          if [ "$PR_DATA" = "INVALID" ]; then
+            echo "Invalid commit message—aborting."
             exit 1
+          elif [ -z "$PR_DATA" ] || [ "$PR_DATA" = "None" ]; then
+            echo "No PR creation needed."
+            exit 0
+          else
+            echo "PR_DATA=$PR_DATA" >> $GITHUB_ENV
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ github.ref_name }}
-          base: main
-          title: ${{ github.event.head_commit.message | regex_replace('^create-pr\(title=(.*?);description=.*\)$', '$1') }}
-          body: ${{ github.event.head_commit.message | regex_replace('^create-pr\(title=.*?;description=(.*)\)$', '$1') }}
-          labels: auto-generated
+          base: ${{ env.PR_DATA | fromJson | get('base') }}
+          title: ${{ env.PR_DATA | fromJson | get('title') }}
+          body: ${{ env.PR_DATA | fromJson | get('description') }}
+          labels: ${{ env.PR_DATA | fromJson | get('labels') | join(',') }}
