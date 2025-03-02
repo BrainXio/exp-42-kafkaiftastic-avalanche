@@ -1,39 +1,31 @@
 name: 'Parse Commit Message'
-description: 'Parse commit message into PR inputs'
+description: 'Parse pull_request.json into PR inputs'
 outputs:
   title:
-    description: 'PR title'
     value: ${{ steps.parse.outputs.title }}
   body:
-    description: 'PR body'
     value: ${{ steps.parse.outputs.body }}
   base:
-    description: 'Base branch'
     value: ${{ steps.parse.outputs.base }}
   labels:
-    description: 'Comma-separated PR labels'
     value: ${{ steps.parse.outputs.labels }}
 runs:
   using: 'composite'
   steps:
-    - name: Parse Commit Message
+    - name: Parse pull_request.json
       id: parse
       run: |
-        COMMIT_MSG=$(git log -1 --pretty=%s)
-        echo "DEBUG: Parsing commit message: '$COMMIT_MSG'"
-        if echo "$COMMIT_MSG" | grep -qE "^create-pr\(.+\)$"; then
-          TITLE=$(echo "$COMMIT_MSG" | sed -n 's/create-pr(title=\([^;]*\);.*/\1/p')
-          BODY=$(echo "$COMMIT_MSG" | sed -n 's/create-pr(title=[^;]*;description=\([^)]*\))/\1/p')
-          BASE=$(echo "$COMMIT_MSG" | sed -n 's/.*base=\([^;)]*\).*/\1/p' || echo "main")
-          LABELS=$(echo "$COMMIT_MSG" | sed -n 's/.*labels=\([^;)]*\).*/\1/p' || echo "auto-generated")
-          [ -z "$TITLE" ] && TITLE="Untitled PR"
-          [ -z "$BODY" ] && BODY="No description provided."
+        if [ -f "pull_request.json" ] && jq -e .title "pull_request.json" >/dev/null 2>&1; then
+          TITLE="[AUTO] $(jq -r '.title' pull_request.json)"
+          BODY=$(jq -r '.description // "No description provided."' pull_request.json)
+          BASE=$(jq -r '.base // "main"' pull_request.json)
+          LABELS=$(jq -r '(.labels // ["auto-generated"]) | join(",")' pull_request.json)
           echo "title=$TITLE" >> $GITHUB_OUTPUT
           echo "body=$BODY" >> $GITHUB_OUTPUT
           echo "base=$BASE" >> $GITHUB_OUTPUT
           echo "labels=$LABELS" >> $GITHUB_OUTPUT
         else
-          echo "Invalid commit message format—aborting."
+          echo "Error: pull_request.json missing or invalid."
           exit 1
         fi
       shell: bash
