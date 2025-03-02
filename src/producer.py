@@ -1,3 +1,4 @@
+import os
 import time
 from kafka import KafkaProducer
 
@@ -19,4 +20,6 @@ def send_messages(bootstrap_servers: str, topic: str) -> None:
 
 
 if __name__ == "__main__":
-    send_messages("localhost:9092", "avalanche-topic")
+    bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    topic = os.getenv("KAFKA_TOPIC", "avalanche-topic")
+    send_messages(bootstrap_servers, topic)

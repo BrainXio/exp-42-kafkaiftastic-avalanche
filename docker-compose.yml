@@ -1,0 +1,46 @@
+services:
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    volumes:
+      - zookeeper_data:/bitnami/zookeeper
+
+  kafka:
+    image: bitnami/kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD", "kafka-topics.sh", "--list", "--bootstrap-server", "localhost:9092"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - kafka_data:/bitnami/kafka
+
+  app:
+    image: ghcr.io/brainxio/exp-42-kafkaiftastic-avalanche:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=avalanche-topic
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["sh", "-c", "sleep 10 && python src/consumer.py"]
+
+volumes:
+  zookeeper_data:
+  kafka_data:

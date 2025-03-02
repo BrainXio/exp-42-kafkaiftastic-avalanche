@@ -7,10 +7,10 @@ install:
 	poetry install --no-root
 
 format:
-	poetry run black src/ tests/
+	poetry run black --line-length 79 src/ tests/
 
 lint:
-	poetry run black --check src/ tests/
+	poetry run black --check --line-length 79 src/ tests/
 	poetry run flake8 src/ tests/
 
 test:
