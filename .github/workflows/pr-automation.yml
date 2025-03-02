@@ -8,29 +8,26 @@ on:
 jobs:
   check-commit:
     runs-on: ubuntu-latest
-    outputs:
-      should_create_pr: ${{ steps.check.outputs.should_create_pr }}
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0  # Nodig om git log te gebruiken
 
       - name: Check Commit Message Format
-        id: check
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%s)
           echo "DEBUG: Checking commit message: '$COMMIT_MSG'"
           if echo "$COMMIT_MSG" | grep -qE "^create-pr\(title=.+;description=.+\)$"; then
             echo "Commit message matches PR creation format."
-            echo "::set-output name=should_create_pr::true"
+            echo "should_create_pr=true" >> $GITHUB_ENV
           else
             echo "Commit message does not match PR creation format—skipping."
-            echo "::set-output name=should_create_pr::false"
+            echo "should_create_pr=false" >> $GITHUB_ENV
           fi
 
   pr-automation:
     needs: check-commit
-    if: needs.check-commit.outputs.should_create_pr == 'true'
+    if: env.should_create_pr == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -50,14 +47,19 @@ jobs:
           poetry install --no-root
           COMMIT_DATA=$(poetry run tools/validate_commit_msg.py && echo "VALID" || echo "INVALID")
           echo "Validation result: $COMMIT_DATA"
-          if [ "$COMMIT_DATA" = "VALID" ]; then
-            TITLE=$(git log -1 --pretty=%s | sed -n 's/create-pr(title=\(.*\);description=.*)/\1/p')
-            DESCRIPTION=$(git log -1 --pretty=%s | sed -n 's/create-pr(title=.*;description=\(.*\))/\1/p')
-            echo "Creating PR with title: $TITLE"
-            gh pr create --base main --head ${{ github.ref_name }} --title "$TITLE" --body "$DESCRIPTION" --label "auto-generated"
-          else
+          if [ "$COMMIT_DATA" != "VALID" ]; then
             echo "Invalid commit message—aborting PR creation."
             exit 1
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref_name }}
+          base: main
+          title: ${{ github.event.head_commit.message | regex_replace('^create-pr\(title=(.*?);description=.*\)$', '$1') }}
+          body: ${{ github.event.head_commit.message | regex_replace('^create-pr\(title=.*?;description=(.*)\)$', '$1') }}
+          labels: auto-generated
