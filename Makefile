@@ -8,6 +8,7 @@ install:
 
 format:
 	poetry run black --line-length 79 src/ tests/
+	poetry run ruff check --fix src/ tests/
 
 lint:
 	poetry run black --check --line-length 79 src/ tests/
