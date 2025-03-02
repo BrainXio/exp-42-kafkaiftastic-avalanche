@@ -23,22 +23,22 @@ jobs:
       # Log het laatste commit-bericht voor debugging
       - name: Log Latest Commit Message
         run: |
-          echo "Last commit message:"
+          echo "Last commit message from git log:"
           git log -1 --pretty=%B
 
       # Valideer commit en maak PR
       - name: Validate Commit and Create PR
         run: |
           poetry install --no-root
-          COMMIT_DATA=$(poetry run tools/validate_commit_msg.py && echo "VALID" || echo "INVALID")
+          COMMIT_DATA=$(poetry run tools/validate_commit_msg.py && echo "VALID" || echo "INVALID_OR_NOOP")
+          echo "Validation result: $COMMIT_DATA"
           if [ "$COMMIT_DATA" = "VALID" ]; then
-            TITLE=$(git log -1 --pretty=%s)
-            DESCRIPTION=$(git log -1 --pretty=%b | tail -n +2 || echo "No description provided.")
+            TITLE=$(git log -1 --pretty=%s | sed -n 's/create-pr(title=\(.*\);description=.*)/\1/p')
+            DESCRIPTION=$(git log -1 --pretty=%s | sed -n 's/create-pr(title=.*;description=\(.*\))/\1/p')
             echo "Creating PR with title: $TITLE"
             gh pr create --base main --head ${{ github.ref_name }} --title "$TITLE" --body "$DESCRIPTION" --label "auto-generated"
           else
-            echo "Invalid commit message—skipping PR creation."
-            exit 1
+            echo "No PR creation triggered (invalid or non-PR commit message)."
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
