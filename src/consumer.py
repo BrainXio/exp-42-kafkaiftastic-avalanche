@@ -8,6 +8,7 @@ from kafka.errors import NoBrokersAvailable
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def process_messages(bootstrap_servers: str, topic: str) -> None:
     """Consume messages from a Kafka topic and apply basic sentiment analysis.
 
@@ -19,7 +20,9 @@ def process_messages(bootstrap_servers: str, topic: str) -> None:
     retry_delay = 5  # seconds
     for attempt in range(max_retries):
         try:
-            logger.info(f"Attempting to connect to Kafka at {bootstrap_servers}, attempt {attempt + 1}/{max_retries}")
+            logger.info(
+                f"Attempting to connect to Kafka at {bootstrap_servers}, attempt {attempt + 1}/{max_retries}"
+            )
             consumer = KafkaConsumer(
                 topic,
                 bootstrap_servers=bootstrap_servers,
@@ -28,12 +31,14 @@ def process_messages(bootstrap_servers: str, topic: str) -> None:
             logger.info("Connected to Kafka. Listening for messages...")
             break
         except NoBrokersAvailable as e:
-            logger.warning(f"No brokers available: {e}. Retrying in {retry_delay} seconds...")
+            logger.warning(
+                f"No brokers available: {e}. Retrying in {retry_delay} seconds..."
+            )
             if attempt == max_retries - 1:
                 logger.error("Max retries reached. Giving up.")
                 raise
             time.sleep(retry_delay)
-    
+
     # Continuous loop to keep consuming
     while True:
         try:
@@ -42,7 +47,7 @@ def process_messages(bootstrap_servers: str, topic: str) -> None:
             if not msg_pack:
                 logger.info("No messages received, waiting...")
                 continue
-            
+
             for _, messages in msg_pack.items():
                 for message in messages:
                     text = message.value.decode("utf-8")
