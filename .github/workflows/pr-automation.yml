@@ -24,21 +24,37 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      # Deel 1: PR-creatie bij push van PR.txt
-      - name: Validate PR.txt and Create PR
+      # Deel 1: PR-creatie of sluiting bij push
+      - name: Validate PR.txt and Manage PR
         if: github.event_name == 'push'
         run: |
           poetry install --no-root
-          poetry run tools/validate_pr_txt.py || exit 1
-          TITLE=$(grep "^Title:" PR.txt | cut -d':' -f2- | xargs)
-          DESCRIPTION=$(grep "^Description:" PR.txt | cut -d':' -f2- | xargs)
-          LABELS=$(grep "^Labels:" PR.txt | cut -d':' -f2- | xargs || echo "")
-          if [ -z "$TITLE" ] || [ -z "$DESCRIPTION" ]; then
-            echo "Validation failed or missing fields."
+          PR_CONTENT=$(poetry run tools/validate_pr_txt.py && echo "VALID" || echo "INVALID")
+          if [ "$PR_CONTENT" = "VALID" ]; then
+            TITLE=$(grep "^Title:" PR.txt | cut -d':' -f2- | xargs)
+            DESCRIPTION=$(grep "^Description:" PR.txt | cut -d':' -f2- | xargs)
+            LABELS=$(grep "^Labels:" PR.txt | cut -d':' -f2- | xargs || echo "")
+            if [ -z "$TITLE" ] || [ -z "$DESCRIPTION" ]; then
+              echo "Validation failed or missing fields."
+              exit 1
+            fi
+            echo "Creating PR with title: $TITLE"
+            gh pr create --base main --head ${{ github.ref_name }} --title "$TITLE" --body "$DESCRIPTION" --label "$LABELS"
+          elif [ -f PR.txt ]; then
+            echo "PR.txt is invalid—aborting."
             exit 1
+          else
+            echo "No valid PR.txt found—checking for open PRs to close."
+            PR_EXISTS=$(gh pr list --head ${{ github.ref_name }} --state open --json number -q '.[] | .number')
+            if [ -n "$PR_EXISTS" ]; then
+              for PR_NUM in $PR_EXISTS; do
+                echo "Closing PR #$PR_NUM as PR.txt was removed."
+                gh pr close $PR_NUM --comment "Closed due to PR.txt removal."
+              done
+            else
+              echo "No open PRs found for this branch."
+            fi
           fi
-          echo "Creating PR with title: $TITLE"
-          gh pr create --base main --head ${{ github.ref_name }} --title "$TITLE" --body "$DESCRIPTION" --label "$LABELS"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

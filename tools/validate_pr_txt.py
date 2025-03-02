@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 import sys
+import os
 
 def validate_pr_txt(file_path="PR.txt"):
-    """Validate PR.txt content against required structure."""
+    """Validate PR.txt content or return None if file is absent."""
+    if not os.path.exists(file_path):
+        print("No PR.txt found—proceeding without PR creation.")
+        return None
+
     required_fields = {"Title", "Description"}
     content = {}
 
@@ -12,8 +17,8 @@ def validate_pr_txt(file_path="PR.txt"):
                 if ":" in line:
                     key, value = map(str.strip, line.split(":", 1))
                     content[key] = value
-    except FileNotFoundError:
-        print("Error: PR.txt not found.")
+    except IOError as e:
+        print(f"Error reading {file_path}: {e}")
         return False
 
     missing = required_fields - set(content.keys())
@@ -33,4 +38,4 @@ def validate_pr_txt(file_path="PR.txt"):
 
 if __name__ == "__main__":
     result = validate_pr_txt()
-    sys.exit(0 if result else 1)
+    sys.exit(0 if result is not False else 1)
