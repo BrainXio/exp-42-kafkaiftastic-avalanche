@@ -27,18 +27,41 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Automatische Test Branch
+        run: |
+          AUTO_TEST_BRANCH="auto-test"
+          git fetch origin
+          if ! git ls-remote --heads origin | grep -q "refs/heads/$AUTO_TEST_BRANCH"; then
+            echo "Creating automatische test branch $AUTO_TEST_BRANCH from main"
+            git checkout main
+            git branch $AUTO_TEST_BRANCH
+            git push origin $AUTO_TEST_BRANCH
+          else
+            echo "Automatische test branch $AUTO_TEST_BRANCH already exists."
+          fi
+
       - name: Parse Commit Message
         id: parse
         uses: ./.github/actions/parse-commit
         if: needs.check-trigger.outputs.action == 'create'
+
+      - name: Create Temporary Branch
+        if: needs.check-trigger.outputs.action == 'create'
+        run: |
+          TEMP_BRANCH="pr-$(date +%s)-${{ github.run_id }}"
+          git fetch origin ${{ steps.parse.outputs.base }}
+          git checkout ${{ steps.parse.outputs.base }}
+          git checkout -b "$TEMP_BRANCH"
+          git push origin "$TEMP_BRANCH"
+          echo "TEMP_BRANCH=$TEMP_BRANCH" >> $GITHUB_ENV
 
       - name: Create Pull Request
         if: needs.check-trigger.outputs.action == 'create'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref_name }}
-          base: ${{ steps.parse.outputs.base }}
+          branch: ${{ env.TEMP_BRANCH }}
+          base: "auto-test"
           title: ${{ steps.parse.outputs.title }}
           body: ${{ steps.parse.outputs.body }}
           labels: ${{ steps.parse.outputs.labels }}
