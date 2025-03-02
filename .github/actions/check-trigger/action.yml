@@ -1,7 +1,5 @@
 name: 'Check PR Trigger'
 description: 'Determine if a PR should be created or closed based on file or commit'
-outputs:
-  action: ${{ steps.check.outputs.action }}
 runs:
   using: 'composite'
   steps:
@@ -21,3 +19,7 @@ runs:
           echo "action=skip" >> $GITHUB_OUTPUT
         fi
       shell: bash
+  outputs:
+    action:
+      description: 'Action to take: create, close, or skip'
+      value: '${{ steps.check.outputs.action }}'
