@@ -21,7 +21,8 @@ def process_messages(bootstrap_servers: str, topic: str) -> None:
     for attempt in range(max_retries):
         try:
             logger.info(
-                f"Attempting to connect to Kafka at {bootstrap_servers}, attempt {attempt + 1}/{max_retries}"
+                f"Attempting to connect to Kafka at {bootstrap_servers}, "
+                f"attempt {attempt + 1}/{max_retries}"
             )
             consumer = KafkaConsumer(
                 topic,
@@ -32,7 +33,8 @@ def process_messages(bootstrap_servers: str, topic: str) -> None:
             break
         except NoBrokersAvailable as e:
             logger.warning(
-                f"No brokers available: {e}. Retrying in {retry_delay} seconds..."
+                f"No brokers available: {e}. Retrying in "
+                f"{retry_delay} seconds..."
             )
             if attempt == max_retries - 1:
                 logger.error("Max retries reached. Giving up.")
@@ -51,7 +53,11 @@ def process_messages(bootstrap_servers: str, topic: str) -> None:
             for _, messages in msg_pack.items():
                 for message in messages:
                     text = message.value.decode("utf-8")
-                    sentiment = "positive" if "avalanche" in text.lower() else "neutral"
+                    sentiment = (
+                        "positive"
+                        if "avalanche" in text.lower()
+                        else "neutral"
+                    )
                     logger.info(f"Message: {text} | Sentiment: {sentiment}")
         except Exception as e:
             logger.error(f"Error while consuming messages: {e}")
