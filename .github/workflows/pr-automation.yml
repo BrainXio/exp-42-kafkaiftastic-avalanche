@@ -1,0 +1,49 @@
+name: PR Automation with PR.txt
+
+on:
+  push:
+    branches:
+      - feature/*
+    paths:
+      - 'PR.txt'
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  pr-automation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # Deel 1: PR-creatie bij push van PR.txt
+      - name: Validate PR.txt and Create PR
+        if: github.event_name == 'push'
+        run: |
+          poetry install --no-root
+          poetry run tools/validate_pr_txt.py || exit 1
+          TITLE=$(grep "^Title:" PR.txt | cut -d':' -f2- | xargs)
+          DESCRIPTION=$(grep "^Description:" PR.txt | cut -d':' -f2- | xargs)
+          LABELS=$(grep "^Labels:" PR.txt | cut -d':' -f2- | xargs || echo "")
+          if [ -z "$TITLE" ] || [ -z "$DESCRIPTION" ]; then
+            echo "Validation failed or missing fields."
+            exit 1
+          fi
+          echo "Creating PR with title: $TITLE"
+          gh pr create --base main --head ${{ github.ref_name }} --title "$TITLE" --body "$DESCRIPTION" --label "$LABELS"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Deel 2: Cleanup na merge
+      - name: Remove PR.txt after merge
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+        run: |
+          git checkout ${{ github.event.pull_request.head.ref }}
+          if [ -f PR.txt ]; then
+            git rm PR.txt
+            git commit -m "Remove PR.txt after merge"
+            git push origin ${{ github.event.pull_request.head.ref }}
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
