@@ -1,0 +1,23 @@
+[project]
+name = "exp-42-kafkaiftastic-avalanche"
+version = "0.1.0"
+description = "A Kafka pipeline in an Alpine container with AI artifacts"
+authors = [
+    {name = "Brain-X",email = "github@brain-x.io"}
+]
+license = {text = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "kafka-python (>=2.0.2,<3.0.0)"
+]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^6.0"
+black = "^23.0"
+pytest = "^7.0"
+
