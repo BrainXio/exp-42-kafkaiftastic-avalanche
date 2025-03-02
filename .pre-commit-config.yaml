@@ -3,10 +3,10 @@ repos:
   rev: v4.6.0
   hooks:
   - id: trailing-whitespace
-    stages: [pre-commit]  # Run alleen bij commit
-    args: [--markdown-linebreak-ext=md]  # Behoud Markdown linebreaks
+    stages: [pre-commit]
+    args: [--markdown-linebreak-ext=md]
   - id: end-of-file-fixer
-    stages: [pre-commit]  # Run bij commit
+    stages: [pre-commit]
   - id: check-json
     files: ^artifacts/.*\.json$
   - id: check-yaml
@@ -15,4 +15,4 @@ repos:
   rev: 23.12.1
   hooks:
   - id: black
-    stages: [pre-commit]  # Run bij commit
+    stages: [pre-commit]
