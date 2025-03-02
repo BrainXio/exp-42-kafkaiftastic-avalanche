@@ -86,12 +86,20 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push Docker image
+      - name: Build and push consumer image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: ghcr.io/brainxio/exp-42-kafkaiftastic-avalanche:latest
+          tags: ghcr.io/brainxio/exp-42-kafkaiftastic-avalanche:consumer
+          build-args: |
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+      - name: Build and push producer image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/brainxio/exp-42-kafkaiftastic-avalanche:producer
           build-args: |
             BUILD_DATE=${{ github.event.repository.updated_at }}
       - name: Generate mission artifact
