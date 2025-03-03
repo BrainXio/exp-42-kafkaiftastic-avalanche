@@ -17,43 +17,49 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
 
-      - name: Haal laatste commit message op
+      - name: Fetch Latest Commit Message
         id: get-message
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%s)
           echo "message=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "DEBUG: Commit message is '$COMMIT_MSG'"
 
-      - name: Haal open PRs op
+      - name: Get Open PRs
         id: get-pr
         run: |
           PR_NUMBER=$(gh pr list --head ${{ github.ref_name }} --state open --json number -q '.[] | .number')
           if [ -n "$PR_NUMBER" ]; then
             echo "pr_exists=true" >> $GITHUB_OUTPUT
             echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "DEBUG: Open PR number is $PR_NUMBER"
           else
             echo "pr_exists=false" >> $GITHUB_OUTPUT
+            echo "DEBUG: No open PR found"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
-      - name: Maak Pull Request aan
+      - name: Create Pull Request
         if: contains(steps.get-message.outputs.message, '[PR]') && steps.get-pr.outputs.pr_exists == 'false'
         run: |
           TITLE=$(echo "${{ steps.get-message.outputs.message }}" | sed 's/\[PR\] //')
-          gh pr create --base "main" --head ${{ github.ref_name }} --title "$TITLE" --body "Automatische PR door commit message"
+          echo "Creating PR with title: $TITLE"
+          gh pr create --base "main" --head ${{ github.ref_name }} --title "$TITLE" --body "Automated PR from commit message"
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
       - name: Update Pull Request
         if: steps.get-pr.outputs.pr_exists == 'true' && !contains(steps.get-message.outputs.message, '[PR]') && !contains(steps.get-message.outputs.message, '[CLOSE PR]')
         run: |
-          gh pr edit ${{ steps.get-pr.outputs.pr_number }} --title "Updated: ${{ steps.get-message.outputs.message }}" --body "Bijgewerkt door commit: ${{ steps.get-message.outputs.message }}"
+          echo "Updating PR ${{ steps.get-pr.outputs.pr_number }} with message: ${{ steps.get-message.outputs.message }}"
+          gh pr edit ${{ steps.get-pr.outputs.pr_number }} --title "Updated: ${{ steps.get-message.outputs.message }}" --body "Updated by commit: ${{ steps.get-message.outputs.message }}"
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
-      - name: Sluit Pull Request
+      - name: Close Pull Request
         if: contains(steps.get-message.outputs.message, '[CLOSE PR]') && steps.get-pr.outputs.pr_exists == 'true'
         run: |
-          gh pr close ${{ steps.get-pr.outputs.pr_number }} --comment "Gesloten door commit message [CLOSE PR]"
+          echo "Closing PR ${{ steps.get-pr.outputs.pr_number }}"
+          gh pr close ${{ steps.get-pr.outputs.pr_number }} --comment "Closed by commit message [CLOSE PR]"
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
