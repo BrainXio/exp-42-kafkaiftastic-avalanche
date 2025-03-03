@@ -46,7 +46,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           echo "$(date +%s)" > pr-timestamp.txt
           git add pr-timestamp.txt
-          git commit -m "Update PR timestamp to trigger diff"
+          git commit -m "Update PR timestamp to trigger diff" || echo "No new changes to commit"
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
@@ -65,8 +65,8 @@ jobs:
           echo "draft=$(jq -r '.draft // false' pull_request.json)" >> $GITHUB_OUTPUT
           echo "milestone=$(jq -r '.milestone // ""' pull_request.json)" >> $GITHUB_OUTPUT
 
-      - name: Create Pull Request
-        if: steps.check-file.outputs.file_exists == 'true' && steps.get-pr.outputs.pr_exists == 'false'
+      - name: Create or Update Pull Request
+        if: steps.check-file.outputs.file_exists == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT }}
@@ -77,6 +77,7 @@ jobs:
           labels: ${{ steps.parse.outputs.labels }}
           draft: ${{ steps.parse.outputs.draft }}
           milestone: ${{ steps.parse.outputs.milestone }}
+          commit-message: "Automated commit for pull_request.json"
 
       - name: Close Pull Request
         if: steps.check-file.outputs.file_exists == 'false' && steps.get-pr.outputs.pr_exists == 'true'
