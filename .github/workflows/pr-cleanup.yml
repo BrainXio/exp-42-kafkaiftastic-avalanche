@@ -1,0 +1,30 @@
+name: Cleanup After Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove pull_request.json
+        run: |
+          if [ -f "pull_request.json" ]; then
+            git rm pull_request.json
+            git commit -m "Remove pull_request.json after merge"
+            git push origin ${{ github.event.pull_request.head.ref }}
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

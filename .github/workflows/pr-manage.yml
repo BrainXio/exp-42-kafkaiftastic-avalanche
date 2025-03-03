@@ -1,0 +1,58 @@
+name: Manage Pull Request
+
+on:
+  push:
+    branches:
+      - feature/*
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  manage-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for pull_request.json
+        id: check-file
+        run: |
+          if [ -f "pull_request.json" ]; then
+            echo "file_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "file_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get Open PRs
+        id: get-pr
+        run: |
+          PR_NUMBER=$(gh pr list --head ${{ github.ref_name }} --state open --json number -q '.[] | .number')
+          if [ -n "$PR_NUMBER" ]; then
+            echo "pr_exists=true" >> $GITHUB_OUTPUT
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          else
+            echo "pr_exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        if: steps.check-file.outputs.file_exists == 'true' && steps.get-pr.outputs.pr_exists == 'false'
+        run: |
+          gh pr create \
+            --base main \
+            --head ${{ github.ref_name }} \
+            --title "[AUTO] PR for ${{ github.ref_name }}" \
+            --body "Automated PR created due to pull_request.json presence"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Close Pull Request
+        if: steps.check-file.outputs.file_exists == 'false' && steps.get-pr.outputs.pr_exists == 'true'
+        run: |
+          gh pr close ${{ steps.get-pr.outputs.pr_number }} --comment "Closed because pull_request.json was removed"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
