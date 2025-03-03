@@ -19,11 +19,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.PAT }}
 
-      - name: Remove pull_request.json
+      - name: Verwijder pull_request.json
         run: |
           if [ -f "pull_request.json" ]; then
             git rm pull_request.json
-            git commit -m "Remove pull_request.json after merge"
+            git commit -m "Verwijder pull_request.json na merge"
             git push origin ${{ github.event.pull_request.head.ref }}
           fi
         env:

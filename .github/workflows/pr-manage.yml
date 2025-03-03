@@ -1,4 +1,4 @@
-name: Manage Pull Request
+name: Manage Pull Request via Commit
 
 on:
   push:
@@ -17,16 +17,13 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
 
-      - name: Check for pull_request.json
-        id: check-file
+      - name: Haal laatste commit message op
+        id: get-message
         run: |
-          if [ -f "pull_request.json" ]; then
-            echo "file_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "file_exists=false" >> $GITHUB_OUTPUT
-          fi
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          echo "message=$COMMIT_MSG" >> $GITHUB_OUTPUT
 
-      - name: Get Open PRs
+      - name: Haal open PRs op
         id: get-pr
         run: |
           PR_NUMBER=$(gh pr list --head ${{ github.ref_name }} --state open --json number -q '.[] | .number')
@@ -39,37 +36,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
-      - name: Parse pull_request.json
-        id: parse
-        if: steps.check-file.outputs.file_exists == 'true'
+      - name: Maak Pull Request aan
+        if: contains(steps.get-message.outputs.message, '[PR]') && steps.get-pr.outputs.pr_exists == 'false'
         run: |
-          if ! jq -e .title "pull_request.json" >/dev/null 2>&1; then
-            echo "Error: pull_request.json is invalid or missing title."
-            exit 1
-          fi
-          echo "base=$(jq -r '.base // "main"' pull_request.json)" >> $GITHUB_OUTPUT
-          echo "title=[AUTO] $(jq -r '.title' pull_request.json)" >> $GITHUB_OUTPUT
-          echo "body=$(jq -r '.body // "Automated PR created by pull_request.json"' pull_request.json)" >> $GITHUB_OUTPUT
-          echo "labels=$(jq -r '(.labels // ["auto-generated"]) | join(",")' pull_request.json)" >> $GITHUB_OUTPUT
-          echo "draft=$(jq -r '.draft // false' pull_request.json)" >> $GITHUB_OUTPUT
-          echo "milestone=$(jq -r '.milestone // ""' pull_request.json)" >> $GITHUB_OUTPUT
+          TITLE=$(echo "${{ steps.get-message.outputs.message }}" | sed 's/\[PR\] //')
+          gh pr create --base "main" --head ${{ github.ref_name }} --title "$TITLE" --body "Automatische PR door commit message"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
 
-      - name: Create or Update Pull Request
-        if: steps.check-file.outputs.file_exists == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.PAT }}
-          base: ${{ steps.parse.outputs.base }}
-          branch: ${{ github.ref_name }}
-          title: ${{ steps.parse.outputs.title }}
-          body: ${{ steps.parse.outputs.body }}
-          labels: ${{ steps.parse.outputs.labels }}
-          draft: ${{ steps.parse.outputs.draft }}
-          milestone: ${{ steps.parse.outputs.milestone }}
-
-      - name: Close Pull Request
-        if: steps.check-file.outputs.file_exists == 'false' && steps.get-pr.outputs.pr_exists == 'true'
+      - name: Update Pull Request
+        if: steps.get-pr.outputs.pr_exists == 'true' && !contains(steps.get-message.outputs.message, '[PR]') && !contains(steps.get-message.outputs.message, '[CLOSE PR]')
         run: |
-          gh pr close ${{ steps.get-pr.outputs.pr_number }} --comment "Closed because pull_request.json was removed"
+          gh pr edit ${{ steps.get-pr.outputs.pr_number }} --title "Updated: ${{ steps.get-message.outputs.message }}" --body "Bijgewerkt door commit: ${{ steps.get-message.outputs.message }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
+      - name: Sluit Pull Request
+        if: contains(steps.get-message.outputs.message, '[CLOSE PR]') && steps.get-pr.outputs.pr_exists == 'true'
+        run: |
+          gh pr close ${{ steps.get-pr.outputs.pr_number }} --comment "Gesloten door commit message [CLOSE PR]"
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
