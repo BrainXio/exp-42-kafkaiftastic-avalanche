@@ -39,10 +39,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT }}
 
+      - name: Ensure PR Change
+        if: steps.check-file.outputs.file_exists == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "$(date +%s)" > pr-timestamp.txt
+          git add pr-timestamp.txt
+          git commit -m "Update PR timestamp to trigger diff"
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+
       - name: Parse pull_request.json
         id: parse
-        uses: ./.github/actions/parse-pr-json
-        if: steps.check-file.outputs.file_exists == 'true' && steps.get-pr.outputs.pr_exists == 'false'
+        if: steps.check-file.outputs.file_exists == 'true'
+        run: |
+          if ! jq -e .title "pull_request.json" >/dev/null 2>&1; then
+            echo "Error: pull_request.json is invalid or missing title."
+            exit 1
+          fi
+          echo "base=$(jq -r '.base // "main"' pull_request.json)" >> $GITHUB_OUTPUT
+          echo "title=[AUTO] $(jq -r '.title' pull_request.json)" >> $GITHUB_OUTPUT
+          echo "body=$(jq -r '.body // "Automated PR created by pull_request.json"' pull_request.json)" >> $GITHUB_OUTPUT
+          echo "labels=$(jq -r '(.labels // ["auto-generated"]) | join(",")' pull_request.json)" >> $GITHUB_OUTPUT
+          echo "draft=$(jq -r '.draft // false' pull_request.json)" >> $GITHUB_OUTPUT
+          echo "milestone=$(jq -r '.milestone // ""' pull_request.json)" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
         if: steps.check-file.outputs.file_exists == 'true' && steps.get-pr.outputs.pr_exists == 'false'
